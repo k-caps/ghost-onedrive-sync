@@ -9,11 +9,6 @@ from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.authentication_context import AuthenticationContext
 
 
-# CONSTANTS
-MICROSOFT_TENANT_URL = os.getenv('tenant_url')
-MICROSOFT_CLIENT_ID = os.getenv('client_id')
-MICROSOFT_CLIENT_SECRET = os.getenv('client_secret')
-
 # VARIABLES
 
 # FUNCTIONS
@@ -59,7 +54,7 @@ def get_date_from_photo():
 #    return context
 
 
-def acquire_token_func(tenant_id: str, client_id: str, client_secret: str):
+def acquire_token(tenant_id: str, client_id: str, client_secret: str):
     """
     Acquire token via MSAL
     """
@@ -75,16 +70,25 @@ def acquire_token_func(tenant_id: str, client_id: str, client_secret: str):
 
 
 
-
 # MAIN
 def main():
     # Change prints() to logging
     load_dotenv()
-    api_token = acquire_token_func(MICROSOFT_TENANT_URL, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
-    client = GraphClient(api_token)
+    MICROSOFT_TENANT_ID = os.getenv('tenant_id')
+    MICROSOFT_CLIENT_ID = os.getenv('client_id')
+    MICROSOFT_CLIENT_SECRET = os.getenv('client_secret')
+
+    def token_callback():
+        return acquire_token(MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
+
+    #api_token = acquire_token(MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
+    client = GraphClient(token_callback)
     drives = client.drives.get().execute_query()
     for drive in drives:
         print(f"Drive url: {drive.web_url}")
+
+# https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/direct-endpoint-differences?view=odsp-graph-online
+# office365.runtime.client_request_exception.ClientRequestException: ('BadRequest', 'Tenant does not have a SPO license.', '400 Client Error: Bad Request for url: https://graph.microsoft.com/v1.0/drives')
 
 
     #onedrive_context = connect_to_onedrive(MICROSOFT_TENANT_URL, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
