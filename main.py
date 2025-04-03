@@ -2,11 +2,12 @@
 
 import os
 import msal
+import json
 import datetime
+import logging
+import requests
 from dotenv import load_dotenv
-from office365.graph_client import GraphClient
-from office365.sharepoint.client_context import ClientContext
-from office365.runtime.auth.authentication_context import AuthenticationContext
+from logging.handlers import RotatingFileHandler
 
 
 # VARIABLES
@@ -48,52 +49,107 @@ def check_if_post_exists():
 def get_date_from_photo():
     pass
 
-#def connect_to_onedrive(tenant_url: str, client_id: str, client_secret: str) -> ClientContext:
-#    context = AuthenticationContext(tenant_url)
-#    context.acquire_token_for_app(client_id, client_secret)
-#    return context
 
-
-def acquire_token(tenant_id: str, client_id: str, client_secret: str):
+def initialize_msal_app(config: dict) -> msal.ConfidentialClientApplication:
     """
-    Acquire token via MSAL
+    Initialize MSAL app instance
     """
-    authority_url = f"https://login.microsoftonline.com/{tenant_id}"
-    app = msal.ConfidentialClientApplication(
-        authority=authority_url,
-        client_id=f"{client_id}",
-        client_credential=f"{client_secret}"
+    app = msal.PublicClientApplication(
+        client_id=config["client_id"],
+        authority=config["authority"],
+        token_cache=msal.SerializableTokenCache()
     )
-    token = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
-    return token
+    return app
 
 
+def interactive_login(app: msal.PublicClientApplication, scopes_list: list, cache_path: str) -> str:
+    """
+    Interactive login to get access token
+    """
+    # One-time interactive login (run this once)
+    flow = app.initiate_device_flow(scopes=scopes_list)
+    print(f"Visit: {flow['verification_uri']}\nEnter code: {flow['user_code']}")
+    result = app.acquire_token_by_device_flow(flow)
+
+    # Save refresh token to file
+    with open(cache_path, "w") as f:
+        f.write(app.token_cache.serialize())
+    
+
+    return result
 
 
-# MAIN
+def get_access_token(app: msal.PublicClientApplication, scopes_list: list, cache_path: str) -> str:
+    # Load cached tokens
+    app.token_cache.deserialize(open(cache_path).read())
+    
+    accounts = app.get_accounts()
+    if accounts:
+        # Silent token acquisition using refresh token
+        result = app.acquire_token_silent(
+            scopes=scopes_list, 
+            account=accounts[0]
+        )
+        return result["access_token"]
+    raise Exception("No valid token cached. Re-run interactive login.")
+
+
+def list_onedrive_files(access_token: str, onedrive_endpoint: str) -> dict:
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        response = requests.get(
+            onedrive_endpoint,
+            headers=headers
+        )
+        return response.json()
+    except Exception as ex:
+        # TODO: when this happens, we should also try to send a notification of failure. 
+        # It should either be here, or have a function constantly scan the log and notifiy if any errors found.
+        logging.error(f"Error: {ex}")
+                
+
+def init_settings():
+    """
+    Initialize settings
+    """
+    # Sets a rotating file handler for logging, up to 100 MB in 3 files, using Elastics ECS log format:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[
+            RotatingFileHandler('app.log', maxBytes=100000000, backupCount=3)
+        ]
+    )
+
+    load_dotenv()
+    MICROSOFT_CLIENT_ID = os.getenv('CLIENT_ID')
+    MICROSOFT_CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+    onedrive_baseurl = 'https://graph.microsoft.com/v1.0/me'
+    onedrive_path = '/drive/items/root:/Pictures/Samsung Gallery/DCIM/Camera'
+    onedrive_endpoint = onedrive_baseurl + onedrive_path + ':/children'
+    config = {}
+    config["secret"] =  MICROSOFT_CLIENT_SECRET	
+    config["client_id"]	= MICROSOFT_CLIENT_ID 
+    config["authority"]	= 'https://login.microsoftonline.com/consumers' 
+    config["endpoint"] = "https://graph.microsoft.com/v1.0/users"
+    config["token_cache_path"] = 'token_cache.json'
+    config["scopes"] = ["Files.ReadWrite.All"]
+    config["onedrive_endpoint"] = onedrive_endpoint
+
+    return config
+
+
 def main():
     # Change prints() to logging
-    load_dotenv()
-    MICROSOFT_TENANT_ID = os.getenv('tenant_id')
-    MICROSOFT_CLIENT_ID = os.getenv('client_id')
-    MICROSOFT_CLIENT_SECRET = os.getenv('client_secret')
+    config = init_settings()
 
-    def token_callback():
-        return acquire_token(MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
-
-    #api_token = acquire_token(MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
-    client = GraphClient(token_callback)
-    drives = client.drives.get().execute_query()
-    for drive in drives:
-        print(f"Drive url: {drive.web_url}")
-
-# https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/direct-endpoint-differences?view=odsp-graph-online
-# office365.runtime.client_request_exception.ClientRequestException: ('BadRequest', 'Tenant does not have a SPO license.', '400 Client Error: Bad Request for url: https://graph.microsoft.com/v1.0/drives')
-
-
-    #onedrive_context = connect_to_onedrive(MICROSOFT_TENANT_URL, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET)
-    #print(f"Began program execution at {datetime.datetime.now()}")
-    #get_photos_from_onedrive(onedrive_context)
+    msal_app = initialize_msal_app(config)
+    access_token = get_access_token(msal_app, config["scopes"], config["token_cache_path"])
+    if not access_token:
+        interactive_login(msal_app, config["scopes"], config["token_cache_path"])
+    onedrive_files_list = list_onedrive_files(access_token, config['onedrive_endpoint'])
+    print(json.dumps(onedrive_files_list))
 
 
 if __name__  == '__main__':
