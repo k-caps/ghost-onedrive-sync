@@ -3,6 +3,9 @@ import requests
 import logging
 import json
 
+PHOTO_FILE_EXTENSIONS = (".jpg", ".jpeg",)
+
+
 def initialize_msal_app(config: dict) -> msal.ConfidentialClientApplication:
     """
     Initialize MSAL app instance
@@ -47,33 +50,43 @@ def get_access_token(app: msal.PublicClientApplication, scopes_list: list, cache
     raise Exception("No valid token cached. Re-run interactive login.")
 
 
-def list_onedrive_files(access_token: str, onedrive_endpoint: str) -> dict:
+def get_all_files(access_token: str, onedrive_endpoint: str) -> dict:
     headers = {"Authorization": f"Bearer {access_token}"}
-    
-    try:
-        response = requests.get(
-            onedrive_endpoint,
-            headers=headers
-        )
-        return response.json()
-    except Exception as ex:
-        # TODO: when this happens, we should also try to send a notification of failure. 
-        # It should either be here, or have a function constantly scan the log and notifiy if any errors found.
-        logging.error(f"Error: {ex}")
+    all_files = []
+    # Graph API only returns 200 items at a time, so we need to loop through the pages, using a field called "@odata.nextLink" to get the next page of results.  
+    next_link = onedrive_endpoint
 
+    while next_link:
+        try:
+            response = requests.get(next_link, headers=headers)
+            
+            if response.status_code != 200:
+                logging.error(f"Error: {response.status_code}, {response.text}")
+            response.raise_for_status()
+
+            data = response.json()
+            all_files.extend(data.get("value", []))  # Add the current page of files
+            next_link = data.get("@odata.nextLink") # Get the next page link if it exists            
+
+        except Exception as ex:
+            # TODO: when this happens, we should also try to send a notification of failure. 
+            # It should either be here, or have a function constantly scan the log and notifiy if any errors found.
+            logging.error(f"Error: {ex}")
+    
+    # Once there are no more pages, return the list of all files    
+    return {"value": all_files}
 
 def get_photos_list(access_token: str, onedrive_endpoint: str):
     """
     Get photos from OneDrive.
     Photos are determined by the file extension.
     """
-    all_onedrive_files_json = list_onedrive_files(access_token, onedrive_endpoint)
+    all_onedrive_files_json = get_all_files(access_token, onedrive_endpoint)
+        
     photos_list = []
-    print(json.dumps(all_onedrive_files_json))
+    #print(json.dumps(all_onedrive_files_json))
     # Iterate through the files and filter photos based on file extension
     for item in all_onedrive_files_json.get("value", []):
-        if "name" in item and item["name"].lower().endswith((".jpg", ".jpeg", ".png")):
-            #photos_list.append(item["name"])
+        if "name" in item and item["name"].lower().endswith(PHOTO_FILE_EXTENSIONS):
             photos_list.append(item)
-
     return photos_list
