@@ -27,5 +27,7 @@ def init_settings():
     config["token_cache_path"] = 'token_cache.json'
     config["scopes"] = ["Files.ReadWrite.All"]
     config["onedrive_endpoint"] = onedrive_baseurl + onedrive_path + ':/children'
+    config["onedrive_baseurl"] = onedrive_baseurl
+    config["onedrive_path"] = onedrive_path
 
     return config
