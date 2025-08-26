@@ -1,6 +1,9 @@
 _DS_Store
 *token_cache.json*
 ghost-onedrive-sync # venv name for the app
+*.jpg
+*.jpeg
+downloads
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
