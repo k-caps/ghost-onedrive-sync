@@ -15,7 +15,7 @@ class Onedrive:
     """
 
     def __init__(self, config: dict):
-        print('Starting OneDrive class init')
+        logging.info('Starting OneDrive class init')
         self.config = config
         self.msal_app = self._initialize_msal_app(config)
 
@@ -25,7 +25,7 @@ class Onedrive:
             self._interactive_login(self.msal_app, self.config["scopes"], self.config["token_cache_path"])
 
     def _initialize_msal_app(self, config: dict) -> msal.ConfidentialClientApplication:
-        print('Initializing MSAL app instance')
+        logging.info('Initializing MSAL app instance')
         """
         Initialize MSAL app instance
         """
@@ -42,7 +42,7 @@ class Onedrive:
         """
         # One-time interactive login (run this once)
         flow = app.initiate_device_flow(scopes=scopes_list)
-        print(f"Visit: {flow['verification_uri']}\nEnter code: {flow['user_code']}")
+        logging.info(f"Visit: {flow['verification_uri']}\nEnter code: {flow['user_code']}")
         result = app.acquire_token_by_device_flow(flow)
 
         # Save refresh token to file
@@ -69,7 +69,7 @@ class Onedrive:
 
 
     def get_all_files(self) -> dict:
-        print('Getting all files from OneDrive')
+        logging.info('Getting all files from OneDrive')
         headers = {"Authorization": f"Bearer {self.access_token}"}
         all_files = []
         # Graph API only returns 200 items at a time, so we need to loop through the pages, using a field called "@odata.nextLink" to get the next page of results.  
@@ -97,7 +97,7 @@ class Onedrive:
 
 
     def get_photos_information(self):
-        print('Getting photos list from OneDrive')
+        logging.info('Getting photos list from OneDrive')
         """
         Get photos from OneDrive.
         Photos are determined by the file extension.
@@ -127,7 +127,7 @@ class Onedrive:
 
 
     def get_photos_to_sync_list(self, filenames):
-        print('Getting photos to sync list')
+        logging.info('Getting photos to sync list')
 
         files_to_sync = []
         for filename in filenames:
@@ -146,7 +146,7 @@ class Onedrive:
         """
         Add a key-value metadata to the file description.
         """
-        print(f'Adding metadata {data_key}: {data_value} to file {file_id}')
+        logging.info(f'Adding metadata {data_key}: {data_value} to file {file_id}')
         
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -169,7 +169,7 @@ class Onedrive:
         """
         Get a key-value metadata from the file description.
         """
-        print(f'Getting metadata {data_key} from file {file_id}')
+        logging.info(f'Getting metadata {data_key} from file {file_id}')
         
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -180,7 +180,7 @@ class Onedrive:
         
         response = requests.get(metadata_endpoint, headers=headers)
         
-        print(response.text)
+        logging.info(response.text)
         if response.status_code != 200:
             raise Exception(f"Failed to get metadata from file. Error: {response.status_code}, {response.text}")
         

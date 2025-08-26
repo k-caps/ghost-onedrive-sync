@@ -1,6 +1,7 @@
 #!python3
 import onedrive
 import json
+import logging
 import datetime
 import settings
 from dotenv import load_dotenv
@@ -73,15 +74,15 @@ def main():
 
     this_months_photos = get_this_months_photos(all_onedrive_photos_info)
     # for photo in this_months_photos:
-    #     print(f"Photo name: {photo}")
-    #     print(f"Photo ID: {this_months_photos[photo]['id']}")
-    #     print(f"Photo download URL: {this_months_photos[photo]['download_url']}")
+    #     logging.info(f"Photo name: {photo}")
+    #     logging.info(f"Photo ID: {this_months_photos[photo]['id']}")
+    #     logging.info(f"Photo download URL: {this_months_photos[photo]['download_url']}")
 
     
     this_months_unsynced_photos = onedrive.get_photos_to_sync_list(this_months_photos)
 
     for photo in this_months_unsynced_photos:
-        print(f"Photo to sync: {photo}")
+        logging.info(f"Photo to sync: {photo}")
         onedrive.download_file()
         # compress_images(photo)
         # resize_images(photo)

@@ -23,7 +23,7 @@ def init_settings():
 
     config = {}
     config["client_id"]	= os.getenv('CLIENT_ID')
-    config["authority"]	= 'https://login.microsoftonline.com/consumers' 
+    config["authority"]	= 'https://login.microsoftonline.com/consumers'
     config["token_cache_path"] = 'token_cache.json'
     config["scopes"] = ["Files.ReadWrite.All"]
     config["onedrive_endpoint"] = onedrive_baseurl + onedrive_path + ':/children'
