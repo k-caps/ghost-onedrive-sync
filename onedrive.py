@@ -1,3 +1,4 @@
+import os
 import msal
 import requests
 import logging
@@ -6,6 +7,7 @@ from html import unescape
 
 PHOTO_FILE_EXTENSIONS = (".jpg", ".jpeg",)
 FILE_SYNCED_METADATA_KEY = 'sync_status'
+DOWNLOAD_DIR = 'downloads'
 
 # TODO: convert this functions file into an importable class 
 
@@ -97,7 +99,6 @@ class Onedrive:
 
 
     def get_photos_information(self):
-        logging.info('Getting photos list from OneDrive')
         """
         Get photos from OneDrive.
         Photos are determined by the file extension.
@@ -126,15 +127,15 @@ class Onedrive:
             return "synced"    
 
 
-    def get_photos_to_sync_list(self, filenames):
+    def get_photos_to_sync_list(self, files):
         logging.info('Getting photos to sync list')
 
-        files_to_sync = []
-        for filename in filenames:
+        files_to_sync = {}
+        for filename, file_data in files.items():
             try:
-                sync_status = self.check_metadata_for_sync_status(filename)
+                sync_status = self.check_metadata_for_sync_status(file_data['id'])
                 if sync_status == "key does not exist":
-                    files_to_sync.append(filename)
+                    files_to_sync[filename] = file_data
             except Exception as e:
                 logging.error(f"Error checking metadata for {filename}: {e}")
 
@@ -180,7 +181,6 @@ class Onedrive:
         
         response = requests.get(metadata_endpoint, headers=headers)
         
-        logging.info(response.text)
         if response.status_code != 200:
             raise Exception(f"Failed to get metadata from file. Error: {response.status_code}, {response.text}")
         
@@ -194,3 +194,20 @@ class Onedrive:
 
         except json.JSONDecodeError:
             return ""
+        
+
+    @staticmethod
+    def download_file(download_url: str, filename: str) -> None:
+        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+        logging.info(f'Downloading file from {download_url}')
+        # Always stream large downloads
+        response = requests.get(download_url, stream=True)
+
+        if response.status_code == 200:
+            with open(f"{DOWNLOAD_DIR}/{filename}", "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:  # skip keep-alive chunks
+                        f.write(chunk)
+            logging.info(f"{filename} download completed.")
+        else:
+            print("Failed to download:", response.status_code, response.text)

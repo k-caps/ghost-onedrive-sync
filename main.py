@@ -81,14 +81,14 @@ def main():
     
     this_months_unsynced_photos = onedrive.get_photos_to_sync_list(this_months_photos)
 
-    for photo in this_months_unsynced_photos:
-        logging.info(f"Photo to sync: {photo}")
-        onedrive.download_file()
+    for photo_name, photo_file_data in this_months_unsynced_photos.items():
+        logging.info(f"Photo to sync: {photo_name}")
+        onedrive.download_file(photo_file_data['download_url'], photo_name)
         # compress_images(photo)
         # resize_images(photo)
-        # upload_images_to_ghost_post(photo)
-        # create_ghost_post(photo)
         # check_if_post_exists(photo)
+        # create_ghost_post(photo) # if needed
+        # upload_images_to_ghost_post(photo)
         # get_date_from_photo(photo)
 
 
