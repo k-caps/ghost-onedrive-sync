@@ -5,11 +5,10 @@ import logging
 import json
 from html import unescape
 
+# TODO: move these to settings.py
 PHOTO_FILE_EXTENSIONS = (".jpg", ".jpeg",)
 FILE_SYNCED_METADATA_KEY = 'sync_status'
 DOWNLOAD_DIR = 'downloads'
-
-# TODO: convert this functions file into an importable class 
 
 class Onedrive:
     """
@@ -197,7 +196,7 @@ class Onedrive:
         
 
     @staticmethod
-    def download_file(download_url: str, filename: str) -> None:
+    def download_file(download_url: str, filename: str) -> str:
         os.makedirs(DOWNLOAD_DIR, exist_ok=True)
         logging.info(f'Downloading file from {download_url}')
         # Always stream large downloads
@@ -211,3 +210,5 @@ class Onedrive:
             logging.info(f"{filename} download completed.")
         else:
             print("Failed to download:", response.status_code, response.text)
+        
+        return f"{DOWNLOAD_DIR}/{filename}"

@@ -1,0 +1,14 @@
+msal==1.32.0
+PyJWT==2.10.1
+python-dotenv==1.0.1
+requests==2.32.3
+#charset-normalizer==3.4.1
+#typing_extensions==4.12.2
+#cryptography==44.0.2
+#idna==3.10
+#Office365-REST-Python-Client==2.5.14
+#certifi==2025.1.31
+#cffi==1.17.1
+#pycparser==2.22
+#pytz==2025.1
+#urllib3==2.3.0

@@ -1,12 +1,11 @@
 #!python3
-import onedrive
-import json
+import os
 import logging
 import datetime
 import settings
-from dotenv import load_dotenv
+from ghost import Ghost
 from onedrive import Onedrive
-from logging.handlers import RotatingFileHandler
+
 
 
 def get_this_months_photos(all_onedrive_photos_info):
@@ -57,12 +56,6 @@ def get_date_from_photo():
 def main():
     # Change prints() to logging
     config = settings.init_settings()
-
-    # msal_app = onedrive.initialize_msal_app(config)
-    # access_token = onedrive.get_access_token(msal_app, config["scopes"], config["token_cache_path"])
-    # if not access_token:
-    #     onedrive.interactive_login(msal_app, config["scopes"], config["token_cache_path"])
-   
     onedrive = Onedrive(config)
     all_onedrive_photos_info = onedrive.get_photos_information()
 
@@ -81,18 +74,27 @@ def main():
     
     this_months_unsynced_photos = onedrive.get_photos_to_sync_list(this_months_photos)
 
+    # We only init this class here so as not to put more memory pressure on the system while it is busy with onedrive tasks.
+    ghost = Ghost(os.environ['GHOST_ADMIN_URL'],  os.environ['GHOST_ADMIN_API_KEY'])
+
+    all_uploaded_image_urls = []
     for photo_name, photo_file_data in this_months_unsynced_photos.items():
         logging.info(f"Photo to sync: {photo_name}")
-        onedrive.download_file(photo_file_data['download_url'], photo_name)
+        photo_local_file_name: str = onedrive.download_file(photo_file_data['download_url'], photo_name) # add check for if filename already exists on local disk
         # compress_images(photo)
         # resize_images(photo)
-        # check_if_post_exists(photo)
-        # create_ghost_post(photo) # if needed
-        # upload_images_to_ghost_post(photo)
-        # get_date_from_photo(photo)
+        uploaded_photo_url = ghost.upload_image(photo_local_file_name)
+        logging.info(f"Uploaded photo URL: {uploaded_photo_url}")
+        all_uploaded_image_urls.append(uploaded_photo_url)
+        os.remove(photo_local_file_name)
+        # mark photo as synced in onedrive metadata
 
-
-            
+    draft_post_html = ghost.prepare_draft_post_html(all_uploaded_image_urls)
+    logging.info("-------------------------------------------------------------------------------- Prepared draft post HTML content:\n" + draft_post_html + '\n--------------------------------------------------------------------------------\n')
+    this_month = datetime.datetime.now().strftime("%m-%Y")
+    new_post = ghost.create_draft_post(this_month, draft_post_html)
+    logging.info(f"Created new draft post: {new_post['url']}")
+   
 
 if __name__  == '__main__':
     main()
