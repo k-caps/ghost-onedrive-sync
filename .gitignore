@@ -1,4 +1,4 @@
-_DS_Store
+.DS_Store
 *token_cache.json*
 ghost-onedrive-sync # venv name for the app
 *.jpg

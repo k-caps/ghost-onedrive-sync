@@ -51,15 +51,29 @@ class Ghost:
             files = {
                 "file": (image_path, f, "image/jpeg")  # change MIME if needed
             }
-            # Optional: you can add {"purpose": (None, "image")} if you need a specific purpose
-            resp = requests.post(url, headers=self._get_ghost_api_auth_header(self.admin_api_key), files=files, timeout=30, verify=False)
-            print( resp.text )
-        resp.raise_for_status()
 
-        data = resp.json()
-        # Typical response shape: {"images":[{"url":"https://.../content/images/..." }]}
-        return data["images"][0]["url"]
+            resp = requests.Response()            
 
+            try:
+                resp = requests.post(url, headers=self._get_ghost_api_auth_header(self.admin_api_key), files=files, timeout=30, verify=False)
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as ex:
+                logging.error(f"HTTP error during image upload: {ex}")
+                logging.error(resp.text)
+                logging.error(f"Failed to upload image {image_path} to Ghost.")
+                return "upload failed"
+            except Exception as ex: # TODO: cleanup error handling with something actually useful
+                logging.error(f"HTTP error during image upload: {ex}")
+                logging.error(f"Failed to upload image {image_path} to Ghost.")
+                return "upload failed"
+        if resp.status_code in (200, 201):    
+            data = resp.json()
+             # Typical response shape: {"images":[{"url":"https://.../content/images/..." }]}
+            return data["images"][0]["url"]
+        else:
+            logging.error(f"Unexpected response status {resp.status_code} during image upload.")
+            logging.error(f"Failed to upload image {image_path} to Ghost.")
+            return "upload failed"
 
     def create_draft_post(self, title: str, html: str) -> dict:
         """
@@ -69,7 +83,7 @@ class Ghost:
         # ?source=html lets you supply "html" directly
         url = f"{self.admin_api_url}/posts/?source=html"
         headers = {
-            **self.ghost_auth_header,
+            **self._get_ghost_api_auth_header(self.admin_api_key),
             "Content-Type": "application/json"
         }
         body = {
@@ -86,9 +100,9 @@ class Ghost:
 
     @staticmethod
     def prepare_draft_post_html(all_file_urls: list[str]) -> str:
-        html_content: str
+        html_content: str = ''
         for url in all_file_urls:
-            html_content += f"""<p><img src="{url}" alt="Uploaded image"></p>\n""".strip()
+            html_content += f"""<p><img src="{url}" alt="Uploaded image"></p>\n"""
 
         return html_content
 

@@ -14,7 +14,8 @@ def init_settings():
         format='%(asctime)s %(levelname)s %(message)s',
         handlers=[
             RotatingFileHandler('ghost-onedrive-sync.log', maxBytes=100000000, backupCount=3)
-        ]
+        ],
+        force=True
     )
 
     load_dotenv()
@@ -29,5 +30,7 @@ def init_settings():
     config["onedrive_endpoint"] = onedrive_baseurl + onedrive_path + ':/children'
     config["onedrive_baseurl"] = onedrive_baseurl
     config["onedrive_path"] = onedrive_path
+    config["download_dir"] = 'downloads'
+    config["output_dir"] = os.getenv('OUTPUT_DIR', 'optimized')
 
     return config

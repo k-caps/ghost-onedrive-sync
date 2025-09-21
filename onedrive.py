@@ -8,7 +8,6 @@ from html import unescape
 # TODO: move these to settings.py
 PHOTO_FILE_EXTENSIONS = (".jpg", ".jpeg",)
 FILE_SYNCED_METADATA_KEY = 'sync_status'
-DOWNLOAD_DIR = 'downloads'
 
 class Onedrive:
     """
@@ -122,6 +121,8 @@ class Onedrive:
         sync_status = self.get_kv_metadata_file_description(file_id, FILE_SYNCED_METADATA_KEY) or None
         if sync_status is None:
             return "key does not exist"
+        elif sync_status == "unsynced":
+            return "unsynced"
         elif sync_status == "synced":
             return "synced"    
 
@@ -133,14 +134,14 @@ class Onedrive:
         for filename, file_data in files.items():
             try:
                 sync_status = self.check_metadata_for_sync_status(file_data['id'])
-                if sync_status == "key does not exist":
+                logging.info(f"File: {filename}, Sync status: {sync_status}")
+                if sync_status != "synced":
                     files_to_sync[filename] = file_data
             except Exception as e:
                 logging.error(f"Error checking metadata for {filename}: {e}")
 
         return files_to_sync
 
-    #def download_file(self, filename: str):
     
     def set_kv_metadata_file_description(self, file_id: str, data_key: str, data_value: str) -> None:
         """
@@ -196,14 +197,14 @@ class Onedrive:
         
 
     @staticmethod
-    def download_file(download_url: str, filename: str) -> str:
-        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    def download_file(download_url: str, filename: str, download_dir: str) -> str:
+        os.makedirs(download_dir, exist_ok=True)
         logging.info(f'Downloading file from {download_url}')
         # Always stream large downloads
         response = requests.get(download_url, stream=True)
 
         if response.status_code == 200:
-            with open(f"{DOWNLOAD_DIR}/{filename}", "wb") as f:
+            with open(f"{download_dir}/{filename}", "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:  # skip keep-alive chunks
                         f.write(chunk)
@@ -211,4 +212,4 @@ class Onedrive:
         else:
             print("Failed to download:", response.status_code, response.text)
         
-        return f"{DOWNLOAD_DIR}/{filename}"
+        return filename
