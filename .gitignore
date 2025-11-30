@@ -3,7 +3,9 @@
 ghost-onedrive-sync # venv name for the app
 *.jpg
 *.jpeg
+*.webp
 downloads
+optimized
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
